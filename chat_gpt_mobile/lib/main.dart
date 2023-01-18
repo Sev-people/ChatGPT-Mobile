@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
+
+import 'openai/completions_api.dart';
+import 'openai/completions_response.dart';
  
 void main() {
   runApp(const MyApp());
@@ -115,19 +119,30 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
  
-class GeneratorPage extends StatelessWidget {
+class GeneratorPage extends StatefulWidget {
+
+  const GeneratorPage({super.key});
+
+  @override
+  State<GeneratorPage> createState() => _GeneratorPageState();
+}
+
+class _GeneratorPageState extends State<GeneratorPage> {
   final TextEditingController _controller = TextEditingController();
+
   final _formKey = GlobalKey<FormState>();
+
   final _focusNode = FocusNode();
 
-  GeneratorPage({super.key});
- 
+  var displayText;
+
   @override
   Widget build(BuildContext context) {
     return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
+            OpenaiText(textReq: displayText),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -141,9 +156,9 @@ class GeneratorPage extends StatelessWidget {
                       child: TextFormField(
                         focusNode: _focusNode,
                         onFieldSubmitted: (value) {
-                        _formKey.currentState?.validate();
-                        _formKey.currentState?.save();
+                        displayText = value;
                         _controller.clear();
+                        setState((){});
                         },
                         controller: _controller,
                         minLines: 1,
@@ -162,15 +177,41 @@ class GeneratorPage extends StatelessWidget {
                     onPressed: () => {
                       TextInputAction.go,
                       _controller.clear(),
+                      displayText = CompletionsApi.getNewForecast(_controller.value.toString()),
                     },
                     child: const Icon(Icons.send),
                   ),
-                )
+                  
+                ),
               ],
             ),
           ],
         ),
     );
+  }
+}
+
+class OpenaiText extends StatelessWidget {
+  final textReq;
+  const OpenaiText({super.key, required this.textReq});
+
+  @override
+  Widget build(BuildContext context) {  
+  if(textReq != null) {
+  return FutureBuilder(
+  future: CompletionsApi.getNewForecast("Write a reply to the following: $textReq"),
+  builder: (BuildContext context, AsyncSnapshot<CompletionsResponse> forecast) {
+    if (forecast.hasData) {
+      return Text(forecast.data?.choices![0]["text"]);     
+    } else {
+      // Display a loading indicator while waiting for the forecast
+      return const CircularProgressIndicator();
+    }
+  }
+  );
+  } else {
+    return Container();
+  }
   }
 }
  
